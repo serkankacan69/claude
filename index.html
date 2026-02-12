@@ -1,0 +1,306 @@
+<!-- ==================== PART 1 (JS devamı) ==================== -->
+<script>
+'use strict';
+
+// ==================== AUDIO SYSTEM ====================
+// (Senin yukarıdaki audio kodun aynı kalacak. Buradan sonrası: GAME STATE'ten sonra kesilen yerin tamiri.)
+
+// ==================== GAME STATE (FIXED / COMPLETED) ====================
+
+let G = {
+  gold: 0,
+  xp: 0,
+  level: 1,
+  hp: 100,
+  maxHp: 100,
+
+  // Timer / oyun süresi
+  gameTimeSeconds: 0,
+  timerRunning: false,
+  timerLastTick: 0,
+
+  // İçerikler
+  quests: [],
+
+  // 24 slot envanter
+  inventory: Array(24).fill(null),
+
+  // ekipman slotları
+  equipment: { head: null, weapon: null, body: null, ring1: null, boots: null, ring2: null },
+
+  // başarımlar, savaş, üretim vs istatistikler
+  stats: {
+    completedQuests: 0,
+    totalGoldEarned: 0,
+    totalItemsFound: 0,
+    rareFound: 0,
+    legendaryFound: 0,
+    battlesWon: 0,
+    battlesLost: 0,
+    battleLevel: 1,
+    itemsCrafted: 0,
+    maxUpgrade: 0,
+  },
+
+  // milestone/ hedef tablosu ilerlemeleri
+  milestones: {},
+
+  // başarımlar
+  achievementUnlocked: {},
+
+  // ayarlar
+  settings: {
+    soundEnabled: true,
+  },
+
+  // UI için geçici seçimler
+  ui: {
+    editingQuestId: null,
+    selectedItemIndex: null,
+    equipTargetSlot: null,
+  }
+};
+
+// soundEnabled ile G.settings senkron
+// (Audio tarafındaki soundEnabled değişkenin vardı; burada da tutarlı olsun.)
+try {
+  // Eğer yukarıda soundEnabled tanımlıysa, G’den besleyelim
+  if (typeof soundEnabled !== 'undefined') {
+    soundEnabled = !!G.settings.soundEnabled;
+  }
+} catch (_) {}
+
+// ==================== HELPERS ====================
+
+const STORAGE_KEY = 'lifeQuestRPG_v1';
+
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+function randInt(min, max) {
+  // min/max dahil
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function fmtTime(totalSeconds) {
+  totalSeconds = Math.max(0, Math.floor(totalSeconds));
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function getLevelXpNeed(level) {
+  // LEVEL_XP dizisi yukarıda tanımlı (senin kodunda var)
+  const idx = clamp(level - 1, 0, LEVEL_XP.length - 1);
+  return LEVEL_XP[idx];
+}
+
+function getLevelName(level) {
+  const idx = clamp(level - 1, 0, LEVEL_NAMES.length - 1);
+  return LEVEL_NAMES[idx];
+}
+
+function getTotalGoldBonusPercent() {
+  // ekipmanlardan goldBonus toplamı + achievement bonusları gibi şeyler PART 2'de genişleyecek
+  let bonus = 0;
+
+  // ekipman bonusları
+  for (const slot of Object.keys(G.equipment)) {
+    const item = G.equipment[slot];
+    if (item && typeof item.goldBonus === 'number') bonus += item.goldBonus;
+  }
+
+  // achievementlerden gelen sabit bonusları ileride parse edeceğiz
+  // Şimdilik minimal: ach4 ve ach10 gibi "+5% altın" türlerini yakala
+  // (PART 2’de UI ile birlikte daha net)
+  for (const ach of ACHIEVEMENTS) {
+    if (G.achievementUnlocked?.[ach.id] && typeof ach.bonus === 'string') {
+      const m = ach.bonus.match(/\+(\d+)\%\s*altın/i);
+      if (m) bonus += parseInt(m[1], 10);
+    }
+  }
+
+  return bonus;
+}
+
+function getTotalDropBonusPercent() {
+  let bonus = 0;
+
+  for (const slot of Object.keys(G.equipment)) {
+    const item = G.equipment[slot];
+    if (item && typeof item.dropBonus === 'number') bonus += item.dropBonus;
+  }
+
+  for (const ach of ACHIEVEMENTS) {
+    if (G.achievementUnlocked?.[ach.id] && typeof ach.bonus === 'string') {
+      const m = ach.bonus.match(/\+(\d+)\%\s*drop/i);
+      if (m) bonus += parseInt(m[1], 10);
+    }
+  }
+
+  return bonus;
+}
+
+function effectiveGold(base) {
+  const bonusPct = getTotalGoldBonusPercent();
+  return Math.max(0, Math.floor(base * (1 + bonusPct / 100)));
+}
+
+// ==================== SAVE / LOAD ====================
+
+function sanitizeLoadedState(obj) {
+  // En azından kırılmadan ayağa kalksın diye defensif temizlik
+  if (!obj || typeof obj !== 'object') return null;
+
+  const safe = structuredClone(G);
+
+  // primitive’ler
+  safe.gold = Number(obj.gold ?? safe.gold) || 0;
+  safe.xp = Number(obj.xp ?? safe.xp) || 0;
+  safe.level = clamp(Number(obj.level ?? safe.level) || 1, 1, 50);
+
+  safe.maxHp = clamp(Number(obj.maxHp ?? safe.maxHp) || 100, 1, 9999);
+  safe.hp = clamp(Number(obj.hp ?? safe.hp) || safe.maxHp, 0, safe.maxHp);
+
+  safe.gameTimeSeconds = Math.max(0, Number(obj.gameTimeSeconds ?? 0) || 0);
+  safe.timerRunning = !!obj.timerRunning;
+  safe.timerLastTick = Number(obj.timerLastTick ?? 0) || 0;
+
+  // quests
+  safe.quests = Array.isArray(obj.quests) ? obj.quests : [];
+
+  // inventory
+  if (Array.isArray(obj.inventory)) {
+    safe.inventory = obj.inventory.slice(0, 24);
+    while (safe.inventory.length < 24) safe.inventory.push(null);
+  }
+
+  // equipment
+  if (obj.equipment && typeof obj.equipment === 'object') {
+    safe.equipment = { ...safe.equipment, ...obj.equipment };
+  }
+
+  // stats
+  if (obj.stats && typeof obj.stats === 'object') {
+    safe.stats = { ...safe.stats, ...obj.stats };
+  }
+
+  // milestones / achievements
+  safe.milestones = (obj.milestones && typeof obj.milestones === 'object') ? obj.milestones : {};
+  safe.achievementUnlocked = (obj.achievementUnlocked && typeof obj.achievementUnlocked === 'object') ? obj.achievementUnlocked : {};
+
+  // settings
+  if (obj.settings && typeof obj.settings === 'object') {
+    safe.settings = { ...safe.settings, ...obj.settings };
+  }
+
+  // ui
+  if (obj.ui && typeof obj.ui === 'object') {
+    safe.ui = { ...safe.ui, ...obj.ui };
+  }
+
+  // sound sync
+  safe.settings.soundEnabled = !!safe.settings.soundEnabled;
+  try {
+    if (typeof soundEnabled !== 'undefined') soundEnabled = safe.settings.soundEnabled;
+  } catch (_) {}
+
+  return safe;
+}
+
+function saveGame() {
+  try {
+    const payload = JSON.stringify(G);
+    localStorage.setItem(STORAGE_KEY, payload);
+  } catch (e) {
+    console.warn('Save failed:', e);
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+    const sanitized = sanitizeLoadedState(parsed);
+    if (sanitized) G = sanitized;
+
+    // audio toggle UI senkronu (settings tabında var)
+    const st = document.getElementById('soundToggle');
+    if (st) {
+      st.textContent = G.settings.soundEnabled ? 'AÇIK' : 'KAPALI';
+      st.style.color = G.settings.soundEnabled ? 'var(--success)' : 'var(--danger)';
+    }
+  } catch (e) {
+    console.warn('Load failed:', e);
+  }
+}
+
+// ==================== DOM SAFE GETTERS ====================
+
+function $(id) { return document.getElementById(id); }
+
+function setText(id, v) {
+  const el = $(id);
+  if (el) el.textContent = String(v);
+}
+
+function setHTML(id, v) {
+  const el = $(id);
+  if (el) el.innerHTML = v;
+}
+
+// ==================== BOOTSTRAP (PART 2'de render bağlanacak) ====================
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Önce yükle
+  loadGame();
+
+  // soundEnabled sync (audio fonksiyonların bunu kullanıyor)
+  try {
+    if (typeof soundEnabled !== 'undefined') soundEnabled = !!G.settings.soundEnabled;
+  } catch (_) {}
+
+  // Günün ipucu (basit)
+  const tipEl = $('dailyTip');
+  if (tipEl) tipEl.textContent = pick(TIPS);
+
+  // PART 2’de bunlar: nav tab switch, render, quest init, inventory init, battle init, timer loop...
+  // Şimdilik en azından üst bar sayıları boş kalmasın diye hızlı set:
+  setText('goldDisplay', G.gold);
+  setText('invGold', G.gold);
+  setText('levelDisplay', `Sv.${G.level}`);
+  setText('hpDisplay', `${G.hp}/${G.maxHp}`);
+  setText('charHpText', `${G.hp}/${G.maxHp}`);
+  const hpBar = $('charHpBar');
+  if (hpBar) hpBar.style.width = `${(G.hp / Math.max(1, G.maxHp)) * 100}%`;
+
+  setText('charLevelName', getLevelName(G.level));
+  setText('battleLevel', G.stats.battleLevel ?? 1);
+  setText('battleWins', G.stats.battlesWon ?? 0);
+  setText('battleLosses', G.stats.battlesLost ?? 0);
+
+  // XP metni (render PART 2’de detaylanacak)
+  const need = getLevelXpNeed(G.level);
+  setText('charXpText', `${G.xp} / ${need} XP`);
+  const xpBar = $('charXpBar');
+  if (xpBar) xpBar.style.width = `${clamp((G.xp / Math.max(1, need)) * 100, 0, 100)}%`;
+
+  // bonuslar
+  const gb = getTotalGoldBonusPercent();
+  const db = getTotalDropBonusPercent();
+  setText('statGoldBonus', `+${gb}%`);
+  setText('statDropBonus', `+${db}%`);
+
+  // timer text (ring)
+  setText('timerRingText', fmtTime(G.gameTimeSeconds));
+  setText('timerBigDisplay', fmtTime(G.gameTimeSeconds));
+  setText('timerTotalMin', Math.floor(G.gameTimeSeconds / 60));
+});
+
+// ==================== PART 1 END ====================
+</script>
