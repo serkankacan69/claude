@@ -1,11 +1,1792 @@
-<!-- ==================== PART 1 (JS devamı) ==================== -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Quest RPG - Hayatını Oyunlaştır</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-dark: #0a0a12;
+  --bg-panel: #12121e;
+  --bg-card: #1a1a2e;
+  --bg-card-hover: #222240;
+  --border: #2a2a4a;
+  --border-glow: #4a3f8a;
+  --text: #e0dce8;
+  --text-dim: #8a86a0;
+  --text-bright: #fff;
+  --gold: #ffd700;
+  --gold-dark: #b8960f;
+  --xp-green: #00e676;
+  --xp-dark: #00a152;
+  --hp-red: #ff4444;
+  --hp-dark: #b71c1c;
+  --mana-blue: #448aff;
+  --mana-dark: #1565c0;
+  --common: #9e9e9e;
+  --uncommon: #4caf50;
+  --rare: #2196f3;
+  --epic: #9c27b0;
+  --special: #ff9800;
+  --legendary: #ffd700;
+  --accent: #7c4dff;
+  --accent-glow: #b388ff;
+  --success: #00e676;
+  --danger: #ff5252;
+  --warning: #ffab40;
+  --timer-ring: #00e5ff;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg-dark);
+  color: var(--text);
+  font-family: 'Alegreya', serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 3px; }
+
+/* ANIMATIONS */
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideRight { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+@keyframes glow { 0%,100%{box-shadow:0 0 5px var(--accent)} 50%{box-shadow:0 0 20px var(--accent-glow)} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+@keyframes lootDrop { 0%{opacity:0;transform:translateY(-50px) rotate(-10deg) scale(0.5)} 60%{transform:translateY(10px) rotate(5deg) scale(1.1)} 100%{opacity:1;transform:translateY(0) rotate(0) scale(1)} }
+@keyframes goldFloat { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-40px)} }
+@keyframes progressFill { from{width:0} }
+@keyframes rareBorder { 0%{border-color:#2196f3} 50%{border-color:#64b5f6} 100%{border-color:#2196f3} }
+@keyframes epicBorder { 0%{border-color:#9c27b0;box-shadow:0 0 8px #9c27b0} 50%{border-color:#ce93d8;box-shadow:0 0 16px #ce93d8} 100%{border-color:#9c27b0;box-shadow:0 0 8px #9c27b0} }
+@keyframes legendaryBorder { 0%{border-color:#ffd700;box-shadow:0 0 10px #ffd700} 33%{border-color:#ffab00;box-shadow:0 0 20px #ffab00} 66%{border-color:#fff176;box-shadow:0 0 15px #fff176} 100%{border-color:#ffd700;box-shadow:0 0 10px #ffd700} }
+@keyframes splashOpen { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+@keyframes shakeWarning { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+@keyframes levelUp { 0%{opacity:0;transform:scale(0.3)} 50%{opacity:1;transform:scale(1.2)} 100%{transform:scale(1)} }
+@keyframes battleSlash { 0%{opacity:0;transform:translateX(-100px) rotate(-45deg)} 50%{opacity:1} 100%{opacity:0;transform:translateX(100px) rotate(45deg)} }
+@keyframes damageFlash { 0%,100%{background:transparent} 50%{background:rgba(255,0,0,0.15)} }
+@keyframes spinSlow { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+/* HEADER */
+.header {
+  background: linear-gradient(135deg, #0d0d1a 0%, #1a1030 50%, #0d0d1a 100%);
+  border-bottom: 2px solid var(--border-glow);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 1.4em;
+  background: linear-gradient(135deg, var(--gold), #fff176, var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  letter-spacing: 2px;
+}
+
+.header-stats {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.stat-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  cursor: default;
+  transition: all 0.3s;
+}
+
+.stat-box:hover { border-color: var(--border-glow); }
+.stat-icon { font-size: 1.1em; }
+.stat-value { color: var(--text-bright); font-weight: 600; }
+.stat-label { color: var(--text-dim); font-size: 0.75em; }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* GAME TIMER RING */
+.timer-ring-container {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+.timer-ring-container:hover { transform: scale(1.1); }
+
+.timer-ring-svg {
+  width: 48px;
+  height: 48px;
+  transform: rotate(-90deg);
+}
+
+.timer-ring-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 3;
+}
+
+.timer-ring-progress {
+  fill: none;
+  stroke: var(--timer-ring);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+  filter: drop-shadow(0 0 4px var(--timer-ring));
+}
+
+.timer-ring-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6em;
+  color: var(--timer-ring);
+  font-weight: 600;
+}
+
+/* NAV TABS */
+.nav-tabs {
+  display: flex;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  overflow-x: auto;
+}
+
+.nav-tab {
+  padding: 12px 20px;
+  font-family: 'Cinzel', serif;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* MAIN LAYOUT */
+.main-container {
+  display: flex;
+  min-height: calc(100vh - 110px);
+}
+
+.content-area {
+  flex: 1;
+  padding: 20px;
+  animation: fadeIn 0.4s ease;
+}
+
+.side-panel {
+  width: 320px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 110px);
+  position: sticky;
+  top: 110px;
+}
+
+/* SECTION TITLES */
+.section-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.3em;
+  color: var(--text-bright);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-glow), transparent);
+}
+
+/* QUEST CARDS */
+.quest-list { display: flex; flex-direction: column; gap: 12px; }
+
+.quest-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s;
+  animation: slideRight 0.3s ease;
+  cursor: grab;
+  position: relative;
+}
+
+.quest-card:hover {
+  border-color: var(--border-glow);
+  background: var(--bg-card-hover);
+  transform: translateX(4px);
+}
+
+.quest-card.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.quest-card.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(124,77,255,0.3);
+}
+
+.quest-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.quest-title-area {
+  flex: 1;
+}
+
+.quest-type-badge {
+  font-size: 0.65em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.quest-type-badge.once { background: rgba(33,150,243,0.2); color: #64b5f6; }
+.quest-type-badge.repeatable { background: rgba(156,39,176,0.2); color: #ce93d8; }
+
+.quest-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 1.05em;
+  color: var(--text-bright);
+  margin-top: 4px;
+}
+
+.quest-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.quest-btn {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8em;
+  transition: all 0.2s;
+}
+
+.quest-btn:hover { border-color: var(--accent); color: var(--text-bright); }
+.quest-btn.delete:hover { border-color: var(--danger); color: var(--danger); }
+
+/* PROGRESS BAR */
+.progress-container {
+  margin: 10px 0;
+  position: relative;
+}
+
+.progress-bar-bg {
+  height: 22px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 11px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 11px;
+  background: linear-gradient(90deg, #7c4dff, #b388ff);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  min-width: 0;
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.progress-preview {
+  height: 100%;
+  border-radius: 11px;
+  position: absolute;
+  top: 0;
+  transition: width 0.4s ease;
+  opacity: 0.4;
+  background: linear-gradient(90deg, #00e676, #69f0ae);
+  pointer-events: none;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7em;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  z-index: 2;
+}
+
+/* SUB QUESTS */
+.sub-quest-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sub-quest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  cursor: grab;
+}
+
+.sub-quest:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: var(--border);
+}
+
+.sub-quest.completed {
+  opacity: 0.5;
+}
+
+.sub-quest.completed .sub-quest-name {
+  text-decoration: line-through;
+}
+
+.sub-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-glow);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.sub-checkbox:hover { border-color: var(--success); background: rgba(0,230,118,0.1); }
+.sub-checkbox.checked { background: var(--success); border-color: var(--success); }
+.sub-checkbox.checked::after { content: '✓'; color: #000; font-size: 0.7em; font-weight: 700; }
+
+.sub-quest-name {
+  flex: 1;
+  font-size: 0.9em;
+}
+
+.sub-quest-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.sub-quest:hover .sub-quest-actions { opacity: 1; }
+
+.sub-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.75em;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.sub-btn:hover { color: var(--text-bright); }
+.sub-btn.delete:hover { color: var(--danger); }
+
+.add-sub-quest {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: color 0.2s;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  margin-top: 6px;
+}
+
+.add-sub-quest:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ADD QUEST BUTTON */
+.add-quest-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(124,77,255,0.1), rgba(124,77,255,0.05));
+  border: 2px dashed var(--border-glow);
+  border-radius: 12px;
+  color: var(--accent);
+  font-family: 'Cinzel', serif;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 12px;
+}
+
+.add-quest-btn:hover {
+  background: rgba(124,77,255,0.15);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* MODALS */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 28px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: splashOpen 0.3s ease;
+}
+
+.modal-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 1.2em;
+  color: var(--gold);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Alegreya', serif;
+  font-size: 0.95em;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Alegreya', serif;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.form-select:focus { outline: none; border-color: var(--accent); }
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row > * { flex: 1; }
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #6200ea);
+  color: white;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(124,77,255,0.4); }
+
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #000;
+}
+.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255,215,0,0.4); }
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+
+.btn-danger {
+  background: rgba(255,82,82,0.15);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+.btn-danger:hover { background: rgba(255,82,82,0.3); }
+
+/* INVENTORY */
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.inv-slot {
+  aspect-ratio: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5em;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.inv-slot:hover { border-color: var(--border-glow); transform: scale(1.05); }
+.inv-slot.empty { opacity: 0.4; }
+
+.inv-slot.rarity-common { border-color: var(--common); }
+.inv-slot.rarity-uncommon { border-color: var(--uncommon); }
+.inv-slot.rarity-rare { border-color: var(--rare); animation: rareBorder 2s infinite; }
+.inv-slot.rarity-epic { border-color: var(--epic); animation: epicBorder 2s infinite; }
+.inv-slot.rarity-special { border-color: var(--special); animation: epicBorder 2s infinite; }
+.inv-slot.rarity-legendary { border-color: var(--legendary); animation: legendaryBorder 2s infinite; }
+
+.inv-slot .upgrade-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 0.4em;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* CHARACTER */
+.character-display {
+  text-align: center;
+  padding: 20px;
+}
+
+.character-avatar {
+  width: 120px;
+  height: 160px;
+  margin: 0 auto 16px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-glow);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3em;
+  position: relative;
+}
+
+.equip-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 240px;
+  margin: 0 auto;
+}
+
+.equip-slot {
+  aspect-ratio: 1;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-glow);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.7em;
+  color: var(--text-dim);
+  gap: 2px;
+}
+
+.equip-slot:hover { border-color: var(--accent); border-style: solid; }
+.equip-slot .equip-icon { font-size: 1.8em; }
+
+/* LEVEL BAR */
+.level-bar-container {
+  margin: 12px 0;
+}
+
+.level-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.level-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  color: var(--gold);
+  font-size: 0.9em;
+}
+
+.level-xp {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75em;
+  color: var(--text-dim);
+}
+
+.xp-bar-bg {
+  height: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--xp-green), #69f0ae);
+  border-radius: 5px;
+  transition: width 0.8s ease;
+}
+
+/* SIDE PANEL INFO */
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.info-card-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+.info-card p {
+  font-size: 0.85em;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.bonus-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  font-family: 'JetBrains Mono', monospace;
+  margin: 2px;
+}
+
+.bonus-tag.gold { background: rgba(255,215,0,0.15); color: var(--gold); }
+.bonus-tag.xp { background: rgba(0,230,118,0.15); color: var(--xp-green); }
+.bonus-tag.loot { background: rgba(156,39,176,0.15); color: #ce93d8; }
+
+/* MERCHANT */
+.merchant-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.merchant-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.merchant-item:hover { border-color: var(--gold); transform: translateY(-3px); }
+
+.merchant-item-icon { font-size: 2em; margin-bottom: 6px; }
+.merchant-item-name { font-size: 0.85em; margin-bottom: 4px; }
+.merchant-item-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8em;
+  color: var(--gold);
+}
+
+/* BATTLE */
+.battle-arena {
+  background: linear-gradient(135deg, #1a0a2e 0%, #0a1a2e 100%);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.battle-arena::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(124,77,255,0.05) 0%, transparent 70%);
+  animation: spinSlow 30s linear infinite;
+}
+
+.battle-enemies {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.enemy-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--hp-red);
+  border-radius: 12px;
+  padding: 16px;
+  width: 120px;
+  position: relative;
+}
+
+.enemy-icon { font-size: 2.5em; margin-bottom: 8px; }
+.enemy-name { font-size: 0.8em; color: var(--text); margin-bottom: 6px; }
+
+.enemy-hp-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.enemy-hp-fill {
+  height: 100%;
+  background: var(--hp-red);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.battle-log {
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 16px;
+  text-align: left;
+  font-size: 0.8em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.battle-log-entry {
+  padding: 2px 0;
+  color: var(--text-dim);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.battle-log-entry.player { color: var(--mana-blue); }
+.battle-log-entry.enemy { color: var(--hp-red); }
+.battle-log-entry.reward { color: var(--gold); }
+
+/* ACHIEVEMENTS */
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.achievement-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  transition: all 0.3s;
+}
+
+.achievement-card.unlocked {
+  border-color: var(--gold);
+  background: rgba(255,215,0,0.05);
+}
+
+.achievement-card.locked { opacity: 0.5; }
+
+.achievement-icon {
+  font-size: 1.8em;
+  width: 45px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.achievement-info { flex: 1; }
+.achievement-name { font-family: 'Cinzel', serif; font-size: 0.85em; font-weight: 600; }
+.achievement-desc { font-size: 0.75em; color: var(--text-dim); margin-top: 2px; }
+
+/* SETTINGS */
+.settings-group {
+  margin-bottom: 20px;
+}
+
+.settings-group-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 10px;
+  font-size: 0.95em;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.setting-item:hover { border-color: var(--border-glow); }
+.setting-item.danger:hover { border-color: var(--danger); }
+
+/* LOOT DROP NOTIFICATION */
+.loot-notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  display: none;
+}
+
+.loot-notification.active { display: block; }
+
+.loot-card {
+  background: var(--bg-panel);
+  border: 2px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 30px;
+  text-align: center;
+  animation: lootDrop 0.6s ease;
+  min-width: 250px;
+}
+
+.loot-card .loot-icon { font-size: 3em; margin-bottom: 10px; }
+.loot-card .loot-name { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.1em; margin-bottom: 4px; }
+.loot-card .loot-rarity { font-size: 0.8em; font-family: 'JetBrains Mono', monospace; }
+.loot-card .loot-desc { font-size: 0.8em; color: var(--text-dim); margin-top: 8px; }
+
+/* GOLD FLOAT ANIMATION */
+.gold-float {
+  position: fixed;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1em;
+  font-weight: 700;
+  color: var(--gold);
+  pointer-events: none;
+  z-index: 3000;
+  animation: goldFloat 1.5s ease forwards;
+}
+
+/* DAMAGE OVERLAY */
+.damage-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 999;
+  animation: damageFlash 0.5s ease;
+  display: none;
+}
+
+.damage-overlay.active { display: block; }
+
+/* TIMER MODAL */
+.timer-modal-content {
+  text-align: center;
+}
+
+.timer-big-display {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 3em;
+  font-weight: 700;
+  color: var(--timer-ring);
+  margin: 20px 0;
+  text-shadow: 0 0 20px rgba(0,229,255,0.4);
+}
+
+.timer-bar-bg {
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.timer-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--timer-ring), #18ffff);
+  border-radius: 4px;
+  transition: width 1s linear;
+}
+
+/* LEVEL UP OVERLAY */
+.levelup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.levelup-overlay.active { display: flex; }
+
+.levelup-card {
+  animation: levelUp 0.8s ease;
+  text-align: center;
+  padding: 40px;
+}
+
+.levelup-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 2.5em;
+  background: linear-gradient(135deg, var(--gold), #fff176, var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+}
+
+.levelup-level {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.2em;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+/* HP BAR */
+.hp-bar-container {
+  margin-top: 12px;
+}
+
+.hp-bar-bg {
+  height: 14px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+
+.hp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--hp-red), #ff8a80);
+  border-radius: 7px;
+  transition: width 0.5s ease;
+}
+
+.hp-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65em;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* UPGRADE MODAL */
+.upgrade-chances {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 10px 0;
+}
+
+.upgrade-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.upgrade-dot.filled { background: var(--success); }
+.upgrade-dot.current { background: var(--warning); animation: pulse 1s infinite; }
+
+/* MILESTONE TABLE */
+.milestone-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.milestone-table th, .milestone-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85em;
+}
+
+.milestone-table th {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.milestone-row.completed { opacity: 0.5; }
+.milestone-row.completed td:first-child { text-decoration: line-through; }
+
+/* TOOLTIP */
+.tooltip {
+  position: absolute;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8em;
+  z-index: 500;
+  max-width: 220px;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .main-container { flex-direction: column; }
+  .side-panel { width: 100%; max-height: none; position: static; border-left: none; border-top: 1px solid var(--border); }
+  .inventory-grid { grid-template-columns: repeat(6, 1fr); }
+  .header-stats { gap: 8px; }
+  .stat-box { padding: 4px 8px; font-size: 0.75em; }
+}
+
+/* HIDDEN TABS */
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+
+/* TARGET TABLE */
+.target-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.target-table th, .target-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85em;
+}
+
+.target-table th { font-family: 'Cinzel', serif; color: var(--gold); }
+
+.target-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.target-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.target-bar-fill {
+  height: 100%;
+  background: var(--xp-green);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.collect-btn {
+  padding: 4px 12px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Cinzel', serif;
+  font-size: 0.75em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.collect-btn:hover { transform: scale(1.05); }
+.collect-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* CRAFTING */
+.craft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.craft-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.craft-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.craft-result-icon { font-size: 2em; margin-bottom: 6px; }
+.craft-result-name { font-size: 0.85em; font-weight: 600; margin-bottom: 4px; }
+.craft-materials { font-size: 0.75em; color: var(--text-dim); }
+.craft-cost { font-family: 'JetBrains Mono', monospace; font-size: 0.8em; color: var(--gold); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- DAMAGE OVERLAY -->
+<div class="damage-overlay" id="damageOverlay"></div>
+
+<!-- LOOT NOTIFICATION -->
+<div class="loot-notification" id="lootNotification">
+  <div class="loot-card" id="lootCard">
+    <div class="loot-icon" id="lootIcon">⚔️</div>
+    <div class="loot-name" id="lootName">Efsanevi Kılıç</div>
+    <div class="loot-rarity" id="lootRarity">Efsanevi</div>
+    <div class="loot-desc" id="lootDesc">+15% Altın Bonusu</div>
+    <button class="btn btn-gold" style="margin-top:16px" onclick="closeLoot()">Topla!</button>
+  </div>
+</div>
+
+<!-- LEVEL UP OVERLAY -->
+<div class="levelup-overlay" id="levelUpOverlay" onclick="closeLevelUp()">
+  <div class="levelup-card">
+    <div class="levelup-title">SEVİYE ATLADIN!</div>
+    <div class="levelup-level" id="levelUpText">Seviye 2 - Çırak Savaşçı</div>
+    <div style="margin-top:12px">
+      <span class="bonus-tag gold" id="levelUpBonus1"></span>
+      <span class="bonus-tag loot" id="levelUpBonus2"></span>
+    </div>
+    <p style="color:var(--text-dim);margin-top:16px;font-size:0.85em">Tıkla veya devam et</p>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">⚔️ LIFE QUEST</div>
+  </div>
+  <div class="header-stats">
+    <div class="stat-box">
+      <span class="stat-icon">🪙</span>
+      <span class="stat-value" id="goldDisplay">0</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-icon">⭐</span>
+      <span class="stat-value" id="levelDisplay">Sv.1</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-icon">❤️</span>
+      <span class="stat-value" id="hpDisplay">100/100</span>
+    </div>
+    <div class="stat-box" title="Ordu Gücü">
+      <span class="stat-icon">⚔️</span>
+      <span class="stat-value" id="armyDisplay">0</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="timer-ring-container" id="timerRing" onclick="openTimerModal()" title="Oyun Süresi">
+      <svg class="timer-ring-svg" viewBox="0 0 48 48">
+        <circle class="timer-ring-bg" cx="24" cy="24" r="20"/>
+        <circle class="timer-ring-progress" id="timerRingProgress" cx="24" cy="24" r="20" 
+          stroke-dasharray="125.66" stroke-dashoffset="125.66"/>
+      </svg>
+      <div class="timer-ring-text" id="timerRingText">0:00</div>
+    </div>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="nav-tabs" id="navTabs">
+  <div class="nav-tab active" data-tab="quests">📜 Görevler</div>
+  <div class="nav-tab" data-tab="character">🧙 Karakter</div>
+  <div class="nav-tab" data-tab="inventory">🎒 Envanter</div>
+  <div class="nav-tab" data-tab="merchant">🏪 Tüccar</div>
+  <div class="nav-tab" data-tab="crafting">🔨 Üretim</div>
+  <div class="nav-tab" data-tab="battle">⚔️ Savaş</div>
+  <div class="nav-tab" data-tab="achievements">🏆 Başarımlar</div>
+  <div class="nav-tab" data-tab="milestones">📊 Hedef Tablosu</div>
+  <div class="nav-tab" data-tab="settings">⚙️ Ayarlar</div>
+</nav>
+
+<!-- MAIN -->
+<div class="main-container">
+  <div class="content-area">
+
+    <!-- QUESTS TAB -->
+    <div class="tab-content active" id="tab-quests">
+      <div class="section-title">📜 Aktif Görevler</div>
+      <div class="quest-list" id="questList"></div>
+      <button class="add-quest-btn" onclick="openAddQuestModal()">+ Yeni Görev Ekle</button>
+    </div>
+
+    <!-- CHARACTER TAB -->
+    <div class="tab-content" id="tab-character">
+      <div class="section-title">🧙 Karakter</div>
+      <div class="character-display">
+        <div class="character-avatar" id="charAvatar">🧙</div>
+        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:1.2em;color:var(--text-bright)" id="charName">Kahraman</div>
+        <div class="level-bar-container">
+          <div class="level-info">
+            <span class="level-name" id="charLevelName">Acemi Maceraperest</span>
+            <span class="level-xp" id="charXpText">0 / 100 XP</span>
+          </div>
+          <div class="xp-bar-bg"><div class="xp-bar-fill" id="charXpBar" style="width:0%"></div></div>
+        </div>
+        <div class="hp-bar-container">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:0.8em;color:var(--hp-red)">❤️ Can</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.75em;color:var(--text-dim)" id="charHpText">100/100</span>
+          </div>
+          <div class="hp-bar-bg">
+            <div class="hp-bar-fill" id="charHpBar" style="width:100%"></div>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <div class="info-card" style="flex:1;min-width:120px">
+            <div class="info-card-title">Altın Bonusu</div>
+            <p style="font-size:1.1em;color:var(--gold)" id="statGoldBonus">+0%</p>
+          </div>
+          <div class="info-card" style="flex:1;min-width:120px">
+            <div class="info-card-title">Eşya Şansı</div>
+            <p style="font-size:1.1em;color:#ce93d8" id="statDropBonus">+0%</p>
+          </div>
+        </div>
+      </div>
+      <div class="section-title" style="margin-top:20px">🛡️ Ekipman Slotları</div>
+      <div class="equip-slots" id="equipSlots">
+        <div class="equip-slot" data-slot="head" onclick="openEquipModal('head')"><span class="equip-icon">🎩</span>Baş</div>
+        <div class="equip-slot" data-slot="weapon" onclick="openEquipModal('weapon')"><span class="equip-icon">⚔️</span>Silah</div>
+        <div class="equip-slot" data-slot="body" onclick="openEquipModal('body')"><span class="equip-icon">👕</span>Gövde</div>
+        <div class="equip-slot" data-slot="ring1" onclick="openEquipModal('ring1')"><span class="equip-icon">💍</span>Yüzük 1</div>
+        <div class="equip-slot" data-slot="boots" onclick="openEquipModal('boots')"><span class="equip-icon">👢</span>Ayak</div>
+        <div class="equip-slot" data-slot="ring2" onclick="openEquipModal('ring2')"><span class="equip-icon">💍</span>Yüzük 2</div>
+      </div>
+    </div>
+
+    <!-- INVENTORY TAB -->
+    <div class="tab-content" id="tab-inventory">
+      <div class="section-title" style="justify-content:space-between">
+        🎒 Envanter
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.65em;color:var(--gold)">🪙 <span id="invGold">0</span></span>
+      </div>
+      <div class="inventory-grid" id="inventoryGrid"></div>
+    </div>
+
+    <!-- MERCHANT TAB -->
+    <div class="tab-content" id="tab-merchant">
+      <div class="section-title">🏪 Tüccar</div>
+      <p style="color:var(--text-dim);margin-bottom:16px;font-size:0.9em">Eşyalarını sat veya oyun süresi satın al!</p>
+      <div style="margin-bottom:20px">
+        <div class="info-card">
+          <div class="info-card-title">🎮 Oyun Süresi Satın Al</div>
+          <p>Her 5 dakika = <span style="color:var(--gold);font-family:'JetBrains Mono',monospace">50 🪙</span></p>
+          <button class="btn btn-gold" style="margin-top:10px;width:100%" onclick="buyGameTime()">5 Dakika Satın Al (50🪙)</button>
+        </div>
+      </div>
+      <div class="section-title">Satılık Eşyalar</div>
+      <div id="merchantSellList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- CRAFTING TAB -->
+    <div class="tab-content" id="tab-crafting">
+      <div class="section-title">🔨 Eşya Üretimi</div>
+      <div class="craft-grid" id="craftGrid"></div>
+      <div class="section-title" style="margin-top:24px">⬆️ Eşya Yükseltme (+)</div>
+      <p style="color:var(--text-dim);margin-bottom:12px;font-size:0.85em">Envanterden bir eşya seçerek +8'e kadar yükseltebilirsin. Başarısızlıkta eşya kaybolmaz ama malzeme harcanır.</p>
+      <div id="upgradeList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- BATTLE TAB -->
+    <div class="tab-content" id="tab-battle">
+      <div class="section-title">⚔️ AI Savaş Arenası</div>
+      <div class="info-card" style="margin-bottom:16px">
+        <div class="info-card-title">Ordu Gücün: <span id="battleArmyPower">0</span></div>
+        <p>Görevlerini tamamla, ordunun gücünü artır! Her tamamlanan görev orduna güç katar.</p>
+      </div>
+      <div class="battle-arena" id="battleArena">
+        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:1.3em;color:var(--text-bright);position:relative;z-index:1">Savaş Alanı</div>
+        <div class="battle-enemies" id="battleEnemies"></div>
+        <div style="display:flex;gap:10px;justify-content:center;position:relative;z-index:1">
+          <button class="btn btn-primary" onclick="startBattle()" id="battleStartBtn">⚔️ Savaşa Başla</button>
+          <button class="btn btn-danger" onclick="retreatBattle()" id="battleRetreatBtn" style="display:none">🏃 Geri Çekil</button>
+        </div>
+        <div class="battle-log" id="battleLog">
+          <div class="battle-log-entry">Savaş hazır... Düşmanlar bekliyor!</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px">
+        <div class="info-card" style="flex:1">
+          <div class="info-card-title">Savaş İstatistikleri</div>
+          <p>Kazanılan: <span style="color:var(--success)" id="battleWins">0</span></p>
+          <p>Kaybedilen: <span style="color:var(--danger)" id="battleLosses">0</span></p>
+          <p>Seviye: <span style="color:var(--mana-blue)" id="battleLevel">1</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACHIEVEMENTS TAB -->
+    <div class="tab-content" id="tab-achievements">
+      <div class="section-title">🏆 Başarımlar</div>
+      <div class="achievement-grid" id="achievementGrid"></div>
+    </div>
+
+    <!-- MILESTONES TAB -->
+    <div class="tab-content" id="tab-milestones">
+      <div class="section-title">📊 Hedef Tablosu (Sürekli Görevler)</div>
+      <p style="color:var(--text-dim);margin-bottom:12px;font-size:0.85em">Sürekli görevlerin 5 katı hedefe ulaş ve büyük bonus kazan!</p>
+      <table class="target-table" id="milestoneTable">
+        <thead>
+          <tr><th>Hedef</th><th>İlerleme</th><th>Ödül</th><th></th></tr>
+        </thead>
+        <tbody id="milestoneBody"></tbody>
+      </table>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="tab-content" id="tab-settings">
+      <div class="section-title">⚙️ Ayarlar</div>
+      <div class="settings-group">
+        <div class="settings-group-title">Görev Yönetimi</div>
+        <div class="setting-item danger" onclick="clearOneTimeQuests()">
+          <span>🗑️ Tek Seferlik Görevleri Sil</span><span style="color:var(--danger)">→</span>
+        </div>
+        <div class="setting-item danger" onclick="clearRepeatableQuests()">
+          <span>🔄 Sürekli Görevleri Sil</span><span style="color:var(--danger)">→</span>
+        </div>
+        <div class="setting-item danger" onclick="resetMilestones()">
+          <span>📊 Hedef Tablosunu Sıfırla</span><span style="color:var(--danger)">→</span>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group-title">Ses Ayarları</div>
+        <div class="setting-item" onclick="toggleSound()">
+          <span>🔊 Ses Efektleri</span>
+          <span id="soundToggle" style="color:var(--success)">AÇIK</span>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-group-title">Oyun Verileri</div>
+        <div class="setting-item danger" onclick="resetAll()">
+          <span>⚠️ Tüm Verileri Sıfırla</span><span style="color:var(--danger)">→</span>
+        </div>
+        <div class="setting-item" onclick="exportData()">
+          <span>📤 Verileri Dışa Aktar</span><span>→</span>
+        </div>
+        <div class="setting-item" onclick="importData()">
+          <span>📥 Verileri İçe Aktar</span><span>→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel" id="sidePanel">
+    <div class="info-card">
+      <div class="info-card-title">📌 Bilgi Paneli</div>
+      <p id="sidePanelInfo">Bir görev veya alt görev seçerek detaylı bilgi görebilirsin.</p>
+    </div>
+    <div class="info-card" id="sideQuestInfo" style="display:none">
+      <div class="info-card-title" id="sideQuestTitle">-</div>
+      <p id="sideQuestDesc">-</p>
+      <div style="margin-top:8px" id="sideQuestBonuses"></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title">🎯 Günün İpucu</div>
+      <p id="dailyTip">Görevlerini tamamla, altın kazan ve eşyalarını güçlendir!</p>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title">📈 İstatistikler</div>
+      <p>Toplam Görev: <span id="statTotalQuests">0</span></p>
+      <p>Tamamlanan: <span id="statCompletedQuests">0</span></p>
+      <p>Toplam Altın: <span id="statTotalGold">0</span></p>
+      <p>Eşya Sayısı: <span id="statItemCount">0</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ADD QUEST MODAL -->
+<div class="modal-overlay" id="addQuestModal">
+  <div class="modal">
+    <div class="modal-title">📜 Yeni Görev Oluştur</div>
+    <div class="form-group">
+      <label class="form-label">Görev Adı</label>
+      <input class="form-input" id="questNameInput" placeholder="Örn: Web sitesini bitir">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Görev Türü</label>
+      <select class="form-select" id="questTypeInput">
+        <option value="once">Tek Seferlik</option>
+        <option value="repeatable">Sürekli</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Alt Görevler (her satıra bir tane)</label>
+      <textarea class="form-input" id="subQuestsInput" rows="4" placeholder="Tasarımı yap&#10;Kodlamayı bitir&#10;Test et"></textarea>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal('addQuestModal')">İptal</button>
+      <button class="btn btn-primary" onclick="addQuest()">Oluştur</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT QUEST MODAL -->
+<div class="modal-overlay" id="editQuestModal">
+  <div class="modal">
+    <div class="modal-title">✏️ Görevi Düzenle</div>
+    <div class="form-group">
+      <label class="form-label">Görev Adı</label>
+      <input class="form-input" id="editQuestNameInput">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Görev Türü</label>
+      <select class="form-select" id="editQuestTypeInput">
+        <option value="once">Tek Seferlik</option>
+        <option value="repeatable">Sürekli</option>
+      </select>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal('editQuestModal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveEditQuest()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- TIMER MODAL -->
+<div class="modal-overlay" id="timerModal">
+  <div class="modal">
+    <div class="modal-title">🎮 Oyun Zamanlayıcı</div>
+    <div class="timer-modal-content">
+      <div class="timer-big-display" id="timerBigDisplay">0:00</div>
+      <div class="timer-bar-bg">
+        <div class="timer-bar-fill" id="timerBarFill" style="width:100%"></div>
+      </div>
+      <p style="color:var(--text-dim);font-size:0.85em;margin-bottom:16px">Kalan oyun süren: <span id="timerTotalMin">0</span> dakika</p>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" onclick="closeModal('timerModal')">Kapat</button>
+        <button class="btn btn-primary" id="timerStartBtn" onclick="startTimer()">▶ Başlat</button>
+        <button class="btn btn-danger" id="timerStopBtn" onclick="stopTimer()" style="display:none">⏸ Durdur</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ITEM DETAIL MODAL -->
+<div class="modal-overlay" id="itemDetailModal">
+  <div class="modal">
+    <div class="modal-title" id="itemDetailTitle">Eşya Detayı</div>
+    <div style="text-align:center">
+      <div style="font-size:3em;margin-bottom:8px" id="itemDetailIcon">⚔️</div>
+      <div style="font-family:'Cinzel',serif;font-weight:700" id="itemDetailName">-</div>
+      <div style="font-size:0.8em;margin-top:4px" id="itemDetailRarity">-</div>
+      <div style="font-size:0.85em;color:var(--text-dim);margin-top:8px" id="itemDetailDesc">-</div>
+      <div style="margin-top:10px" id="itemDetailStats"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:0.85em;color:var(--gold);margin-top:8px" id="itemDetailValue">-</div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal('itemDetailModal')">Kapat</button>
+      <button class="btn btn-primary" id="itemEquipBtn" onclick="equipSelectedItem()">Kuşan</button>
+      <button class="btn btn-gold" id="itemSellBtn" onclick="sellSelectedItem()">Sat</button>
+    </div>
+  </div>
+</div>
+
+<!-- EQUIP MODAL -->
+<div class="modal-overlay" id="equipModal">
+  <div class="modal">
+    <div class="modal-title" id="equipModalTitle">Ekipman Seç</div>
+    <div id="equipItemList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal('equipModal')">Kapat</button>
+    </div>
+  </div>
+</div>
+
 <script>
-'use strict';
-
 // ==================== AUDIO SYSTEM ====================
-// (Senin yukarıdaki audio kodun aynı kalacak. Buradan sonrası: GAME STATE'ten sonra kesilen yerin tamiri.)
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+let soundEnabled = true;
 
-// ==================== GAME STATE (FIXED / COMPLETED) ====================
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playTone(freq, dur, type='square', vol=0.08) {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = vol;
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+
+function sfxQuestAdd() { playTone(523,0.1,'sine',0.1); setTimeout(()=>playTone(659,0.1,'sine',0.1),100); setTimeout(()=>playTone(784,0.15,'sine',0.1),200); }
+function sfxSubComplete() { playTone(880,0.08,'sine',0.12); setTimeout(()=>playTone(1047,0.12,'sine',0.12),80); }
+function sfxQuestComplete() { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'sine',0.12),i*100)); }
+function sfxLoot() { playTone(784,0.1,'sine',0.1); setTimeout(()=>playTone(988,0.1,'sine',0.1),100); setTimeout(()=>playTone(1175,0.15,'sine',0.1),200); setTimeout(()=>playTone(1319,0.2,'sine',0.1),300); }
+function sfxGold() { playTone(1319,0.06,'square',0.06); setTimeout(()=>playTone(1568,0.1,'square',0.06),60); }
+function sfxLevelUp() { [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>playTone(f,0.2,'sine',0.12),i*120)); }
+function sfxDamage() { playTone(150,0.2,'sawtooth',0.1); setTimeout(()=>playTone(100,0.3,'sawtooth',0.08),100); }
+function sfxTimerEnd() { for(let i=0;i<5;i++) setTimeout(()=>playTone(880,0.15,'square',0.12),i*200); }
+function sfxBattle() { playTone(200,0.1,'sawtooth',0.08); setTimeout(()=>playTone(300,0.08,'sawtooth',0.08),80); }
+function sfxUpgradeSuccess() { playTone(523,0.1,'sine',0.1); setTimeout(()=>playTone(784,0.1,'sine',0.1),100); setTimeout(()=>playTone(1047,0.2,'sine',0.12),200); }
+function sfxUpgradeFail() { playTone(300,0.2,'sawtooth',0.08); setTimeout(()=>playTone(200,0.3,'sawtooth',0.06),150); }
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  document.getElementById('soundToggle').textContent = soundEnabled ? 'AÇIK' : 'KAPALI';
+  document.getElementById('soundToggle').style.color = soundEnabled ? 'var(--success)' : 'var(--danger)';
+  saveGame();
+}
+
+// ==================== GAME STATE ====================
+const LEVEL_NAMES = [
+  "Acemi Maceraperest","Çırak Savaşçı","Yol Gezgini","Orman Avcısı","Gece Gözcüsü",
+  "Demir Yumruk","Kılıç Ustası","Fırtına Okçusu","Gölge Kaşifi","Taş Kalkan",
+  "Ateş Büyücüsü","Buz Nişancı","Yıldız Şövalyesi","Rüzgar Koşucusu","Ay Savaşçısı",
+  "Ejder Avcısı","Fırtına Lordu","Karanlık Kırıcı","Altın Şafak","Kristal Muhafız",
+  "Kadim Bilge","Titan Dövüşçüsü","Gök Gürültüsü","Ölümsüz Süvari","Phoenix Ustası",
+  "Elmas Kalkan","Yıldırım Çağıran","Kader Okuyucu","Zaman Bükücü","Evren Gezgini",
+  "Ruh Muhafızı","Mitril Şövalyesi","Cennet Nişancı","Kaos Kırıcı","Efsane Avcısı",
+  "Ebedi Koruyucu","Astral Savaşçı","Boyut Gezgini","Tanrısal Okçu","Kıyamet Kılıcı",
+  "Evrensel Bilge","Sonsuz Muhafız","Işık Lordu","Karanlık Yıkıcı","Kozmik Şövalye",
+  "Efsanevi Kahraman","Tanrı Katili","Evren Hükümdarı","Sonsuzluk Lordu","Yaratılış Efendisi"
+];
+
+const LEVEL_XP = [];
+for(let i=0;i<50;i++) LEVEL_XP.push(Math.floor(100 * Math.pow(1.25, i)));
+
+const RARITY_NAMES = {common:"Yaygın",uncommon:"Sıradan",rare:"Nadir",epic:"Epik",special:"Özel",legendary:"Efsanevi"};
+const RARITY_COLORS = {common:"#9e9e9e",uncommon:"#4caf50",rare:"#2196f3",epic:"#9c27b0",special:"#ff9800",legendary:"#ffd700"};
+const RARITY_ORDER = ["common","uncommon","rare","epic","special","legendary"];
+
+const ITEM_DB = [
+  // WEAPONS
+  {id:"w1",name:"Paslı Kılıç",icon:"🗡️",type:"weapon",rarity:"common",slot:"weapon",goldBonus:1,dropBonus:0,sellValue:5,upgradeable:true,desc:"Eski ama işlevsel"},
+  {id:"w2",name:"Çelik Kılıç",icon:"⚔️",type:"weapon",rarity:"uncommon",slot:"weapon",goldBonus:3,dropBonus:1,sellValue:15,upgradeable:true,desc:"Sağlam ve keskin"},
+  {id:"w3",name:"Gölge Hançer",icon:"🔪",type:"weapon",rarity:"rare",slot:"weapon",goldBonus:5,dropBonus:3,sellValue:40,upgradeable:true,desc:"Karanlıkta parlıyor"},
+  {id:"w4",name:"Ateş Baltası",icon:"🪓",type:"weapon",rarity:"epic",slot:"weapon",goldBonus:8,dropBonus:5,sellValue:100,upgradeable:true,desc:"Alevlerle kaplanmış"},
+  {id:"w5",name:"Ejder Kılıcı",icon:"⚔️",type:"weapon",rarity:"legendary",slot:"weapon",goldBonus:15,dropBonus:8,sellValue:300,upgradeable:true,desc:"Ejder kanıyla dövülmüş"},
+  // ARMOR
+  {id:"a1",name:"Deri Zırh",icon:"🥋",type:"body",rarity:"common",slot:"body",goldBonus:0,dropBonus:1,sellValue:5,upgradeable:true,desc:"Basit koruma"},
+  {id:"a2",name:"Zincir Zırh",icon:"🛡️",type:"body",rarity:"uncommon",slot:"body",goldBonus:1,dropBonus:2,sellValue:15,upgradeable:true,desc:"Güçlü savunma"},
+  {id:"a3",name:"Mithril Zırh",icon:"🛡️",type:"body",rarity:"rare",slot:"body",goldBonus:3,dropBonus:4,sellValue:50,upgradeable:true,desc:"Hafif ve dayanıklı"},
+  {id:"a4",name:"Ejder Zırhı",icon:"🛡️",type:"body",rarity:"epic",slot:"body",goldBonus:6,dropBonus:6,sellValue:120,upgradeable:true,desc:"Ejder pullarından yapılmış"},
+  {id:"a5",name:"Tanrı Zırhı",icon:"🛡️",type:"body",rarity:"legendary",slot:"body",goldBonus:12,dropBonus:10,sellValue:350,upgradeable:true,desc:"Tanrıların armağanı"},
+  // HEAD
+  {id:"h1",name:"Kumaş Başlık",icon:"🎩",type:"head",rarity:"common",slot:"head",goldBonus:1,dropBonus:0,sellValue:4,upgradeable:true,desc:"Rüzgarı keser"},
+  {id:"h2",name:"Demir Miğfer",icon:"⛑️",type:"head",rarity:"uncommon",slot:"head",goldBonus:2,dropBonus:1,sellValue:12,upgradeable:true,desc:"Güvenilir koruma"},
+  {id:"h3",name:"Taç",icon:"👑",type:"head",rarity:"legendary",slot:"head",goldBonus:20,dropBonus:10,sellValue:500,upgradeable:true,desc:"Kralların tacı"},
+  // RINGS
+  {id:"r1",name:"Bakır Yüzük",icon:"💍",type:"ring",rarity:"common",slot:"ring1",goldBonus:2,dropBonus:0,sellValue:8,upgradeable:true,desc:"Basit bir yüzük"},
+  {id:"r2",name:"Gümüş Yüzük",icon:"💍",type:"ring",rarity:"uncommon",slot:"ring1",goldBonus:3,dropBonus:2,sellValue:20,upgradeable:true,desc:"Parlak ve zarif"},
+  {id:"r3",name:"Ruh Yüzüğü",icon:"💍",type:"ring",rarity:"epic",slot:"ring1",goldBonus:7,dropBonus:5,sellValue:90,upgradeable:true,desc:"Ruhlarla bağlantı kurar"},
+  {id:"r4",name:"Sonsuzluk Yüzüğü",icon:"💍",type:"ring",rarity:"legendary",slot:"ring1",goldBonus:15,dropBonus:12,sellValue:400,upgradeable:true,desc:"Zamanı büker"},
+  // BOOTS
+  {id:"b1",name:"Çizme",icon:"👢",type:"boots",rarity:"common",slot:"boots",goldBonus:0,dropBonus:1,sellValue:4,upgradeable:true,desc:"Yürüyüşe uygun"},
+  {id:"b2",name:"Hız Botları",icon:"👢",type:"boots",rarity:"rare",slot:"boots",goldBonus:3,dropBonus:3,sellValue:35,upgradeable:true,desc:"Rüzgar gibi hızlı"},
+  // FOOD
+  {id:"f1",name:"Ekmek",icon:"🍞",type:"food",rarity:"common",slot:null,goldBonus:0,dropBonus:0,sellValue:2,upgradeable:false,desc:"Açlığı giderir"},
+  {id:"f2",name:"Epik Kahve",icon:"☕",type:"food",rarity:"epic",slot:null,goldBonus:5,dropBonus:3,sellValue:30,upgradeable:false,desc:"+5% altın, geçici buff"},
+  // MATERIALS
+  {id:"m1",name:"Demir Cevheri",icon:"🪨",type:"material",rarity:"common",slot:null,goldBonus:0,dropBonus:0,sellValue:3,upgradeable:false,desc:"Üretim malzemesi"},
+  {id:"m2",name:"Altın Cevheri",icon:"🥇",type:"material",rarity:"uncommon",slot:null,goldBonus:0,dropBonus:0,sellValue:10,upgradeable:false,desc:"Değerli maden"},
+  {id:"m3",name:"Elmas",icon:"💎",type:"material",rarity:"rare",slot:null,goldBonus:0,dropBonus:0,sellValue:25,upgradeable:false,desc:"Çok değerli"},
+  {id:"m4",name:"Ejder Pulu",icon:"🐉",type:"material",rarity:"epic",slot:null,goldBonus:0,dropBonus:0,sellValue:50,upgradeable:false,desc:"Ejderden düşer"},
+  {id:"m5",name:"Tomar",icon:"📜",type:"material",rarity:"rare",slot:null,goldBonus:0,dropBonus:0,sellValue:20,upgradeable:false,desc:"Kadim bilgi"},
+  {id:"m6",name:"Upgrade Taşı",icon:"💠",type:"material",rarity:"uncommon",slot:null,goldBonus:0,dropBonus:0,sellValue:15,upgradeable:false,desc:"Yükseltme malzemesi"},
+];
+
+const CRAFT_RECIPES = [
+  {id:"c1",name:"Çelik Kılıç",resultId:"w2",icon:"⚔️",materials:[{id:"m1",count:3}],cost:20},
+  {id:"c2",name:"Zincir Zırh",resultId:"a2",icon:"🛡️",materials:[{id:"m1",count:5}],cost:30},
+  {id:"c3",name:"Gölge Hançer",resultId:"w3",icon:"🔪",materials:[{id:"m1",count:3},{id:"m5",count:1}],cost:60},
+  {id:"c4",name:"Mithril Zırh",resultId:"a3",icon:"🛡️",materials:[{id:"m2",count:3},{id:"m3",count:1}],cost:80},
+  {id:"c5",name:"Ateş Baltası",resultId:"w4",icon:"🪓",materials:[{id:"m3",count:2},{id:"m4",count:1}],cost:150},
+  {id:"c6",name:"Ruh Yüzüğü",resultId:"r3",icon:"💍",materials:[{id:"m3",count:2},{id:"m5",count:2}],cost:120},
+];
+
+const ACHIEVEMENTS = [
+  {id:"ach1",name:"İlk Adım",desc:"İlk görevini tamamla",icon:"🎯",check:s=>s.completedQuests>=1,bonus:"10 altın"},
+  {id:"ach2",name:"Görev Ustası",desc:"10 görev tamamla",icon:"📜",check:s=>s.completedQuests>=10,bonus:"50 altın"},
+  {id:"ach3",name:"Yüz Görev",desc:"100 görev tamamla",icon:"🏅",check:s=>s.completedQuests>=100,bonus:"500 altın"},
+  {id:"ach4",name:"Altın Avcısı",desc:"1000 altın biriktir",icon:"🪙",check:s=>s.totalGoldEarned>=1000,bonus:"+5% altın"},
+  {id:"ach5",name:"İlk Eşya",desc:"İlk eşyanı kazan",icon:"🎁",check:s=>s.totalItemsFound>=1,bonus:"10 altın"},
+  {id:"ach6",name:"Koleksiyoncu",desc:"20 eşya topla",icon:"🎒",check:s=>s.totalItemsFound>=20,bonus:"+3% drop"},
+  {id:"ach7",name:"İlk Nadir",desc:"İlk nadir eşyanı bul",icon:"💙",check:s=>s.rareFound>=1,bonus:"30 altın"},
+  {id:"ach8",name:"Efsane Avcısı",desc:"İlk efsanevi eşya",icon:"⭐",check:s=>s.legendaryFound>=1,bonus:"+10% drop"},
+  {id:"ach9",name:"Savaşçı",desc:"İlk savaşı kazan",icon:"⚔️",check:s=>s.battlesWon>=1,bonus:"25 altın"},
+  {id:"ach10",name:"Savaş Lordu",desc:"20 savaş kazan",icon:"🏆",check:s=>s.battlesWon>=20,bonus:"+5% altın"},
+  {id:"ach11",name:"Seviye 10",desc:"Seviye 10'a ulaş",icon:"📈",check:s=>s.level>=10,bonus:"100 altın"},
+  {id:"ach12",name:"Seviye 25",desc:"Seviye 25'e ulaş",icon:"🌟",check:s=>s.level>=25,bonus:"500 altın"},
+  {id:"ach13",name:"Usta Zanaatkar",desc:"5 eşya üret",icon:"🔨",check:s=>s.itemsCrafted>=5,bonus:"+5% drop"},
+  {id:"ach14",name:"Yükseltme Ustası",desc:"Bir eşyayı +5 yap",icon:"⬆️",check:s=>s.maxUpgrade>=5,bonus:"200 altın"},
+];
+
+const ENEMY_DB = [
+  {name:"Fare",icon:"🐀",hp:20,atk:3,goldDrop:[5,15],xpDrop:10},
+  {name:"Goblin",icon:"👺",hp:40,atk:6,goldDrop:[10,30],xpDrop:20},
+  {name:"Kurt",icon:"🐺",hp:60,atk:10,goldDrop:[15,40],xpDrop:35},
+  {name:"İskelet",icon:"💀",hp:80,atk:14,goldDrop:[20,50],xpDrop:50},
+  {name:"Ork",icon:"👹",hp:120,atk:20,goldDrop:[30,70],xpDrop:75},
+  {name:"Vampir",icon:"🧛",hp:160,atk:28,goldDrop:[40,90],xpDrop:100},
+  {name:"Golem",icon:"🗿",hp:220,atk:35,goldDrop:[50,120],xpDrop:140},
+  {name:"Ejder Yavrusu",icon:"🐲",hp:300,atk:45,goldDrop:[80,180],xpDrop:200},
+  {name:"Kara Şövalye",icon:"🦇",hp:400,atk:55,goldDrop:[100,250],xpDrop:280},
+  {name:"Ejder",icon:"🐉",hp:600,atk:70,goldDrop:[200,500],xpDrop:500},
+];
+
+const TIPS = [
+  "Görevlerini küçük parçalara böl, tamamlamak daha kolay olur!",
+  "Sürekli görevler hedef tablosunda 5x bonus kazandırır!",
+  "Eşyalarını yükselt, +8'e kadar güçlendirebilirsin!",
+  "Savaşlarda ordu gücün önemli, görevlerini tamamla!",
+  "Nadir eşyalar animasyonlu kenarlıklara sahiptir!",
+  "Tüccara gereksiz eşyalarını satarak altın kazan!",
+  "Oyun süresi satın al ama görevlerini de unutma!",
+  "5 dakika hareketsizlik canından alır, aktif kal!",
+];
 
 let G = {
   gold: 0,
@@ -13,294 +1794,9 @@ let G = {
   level: 1,
   hp: 100,
   maxHp: 100,
-
-  // Timer / oyun süresi
   gameTimeSeconds: 0,
-  timerRunning: false,
-  timerLastTick: 0,
-
-  // İçerikler
   quests: [],
-
-  // 24 slot envanter
   inventory: Array(24).fill(null),
+  equipment: {head:null,weapon:null,body:null,ring1:null,boots:null,ring2:null},
+  stats: {completedQuests:0,totalGoldEarned:0,totalItemsFound:0,rareFound:0,legendaryFound:0,battlesWon:0,battlesLost:0,battleLevel:1,
 
-  // ekipman slotları
-  equipment: { head: null, weapon: null, body: null, ring1: null, boots: null, ring2: null },
-
-  // başarımlar, savaş, üretim vs istatistikler
-  stats: {
-    completedQuests: 0,
-    totalGoldEarned: 0,
-    totalItemsFound: 0,
-    rareFound: 0,
-    legendaryFound: 0,
-    battlesWon: 0,
-    battlesLost: 0,
-    battleLevel: 1,
-    itemsCrafted: 0,
-    maxUpgrade: 0,
-  },
-
-  // milestone/ hedef tablosu ilerlemeleri
-  milestones: {},
-
-  // başarımlar
-  achievementUnlocked: {},
-
-  // ayarlar
-  settings: {
-    soundEnabled: true,
-  },
-
-  // UI için geçici seçimler
-  ui: {
-    editingQuestId: null,
-    selectedItemIndex: null,
-    equipTargetSlot: null,
-  }
-};
-
-// soundEnabled ile G.settings senkron
-// (Audio tarafındaki soundEnabled değişkenin vardı; burada da tutarlı olsun.)
-try {
-  // Eğer yukarıda soundEnabled tanımlıysa, G’den besleyelim
-  if (typeof soundEnabled !== 'undefined') {
-    soundEnabled = !!G.settings.soundEnabled;
-  }
-} catch (_) {}
-
-// ==================== HELPERS ====================
-
-const STORAGE_KEY = 'lifeQuestRPG_v1';
-
-function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-
-function randInt(min, max) {
-  // min/max dahil
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function fmtTime(totalSeconds) {
-  totalSeconds = Math.max(0, Math.floor(totalSeconds));
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function getLevelXpNeed(level) {
-  // LEVEL_XP dizisi yukarıda tanımlı (senin kodunda var)
-  const idx = clamp(level - 1, 0, LEVEL_XP.length - 1);
-  return LEVEL_XP[idx];
-}
-
-function getLevelName(level) {
-  const idx = clamp(level - 1, 0, LEVEL_NAMES.length - 1);
-  return LEVEL_NAMES[idx];
-}
-
-function getTotalGoldBonusPercent() {
-  // ekipmanlardan goldBonus toplamı + achievement bonusları gibi şeyler PART 2'de genişleyecek
-  let bonus = 0;
-
-  // ekipman bonusları
-  for (const slot of Object.keys(G.equipment)) {
-    const item = G.equipment[slot];
-    if (item && typeof item.goldBonus === 'number') bonus += item.goldBonus;
-  }
-
-  // achievementlerden gelen sabit bonusları ileride parse edeceğiz
-  // Şimdilik minimal: ach4 ve ach10 gibi "+5% altın" türlerini yakala
-  // (PART 2’de UI ile birlikte daha net)
-  for (const ach of ACHIEVEMENTS) {
-    if (G.achievementUnlocked?.[ach.id] && typeof ach.bonus === 'string') {
-      const m = ach.bonus.match(/\+(\d+)\%\s*altın/i);
-      if (m) bonus += parseInt(m[1], 10);
-    }
-  }
-
-  return bonus;
-}
-
-function getTotalDropBonusPercent() {
-  let bonus = 0;
-
-  for (const slot of Object.keys(G.equipment)) {
-    const item = G.equipment[slot];
-    if (item && typeof item.dropBonus === 'number') bonus += item.dropBonus;
-  }
-
-  for (const ach of ACHIEVEMENTS) {
-    if (G.achievementUnlocked?.[ach.id] && typeof ach.bonus === 'string') {
-      const m = ach.bonus.match(/\+(\d+)\%\s*drop/i);
-      if (m) bonus += parseInt(m[1], 10);
-    }
-  }
-
-  return bonus;
-}
-
-function effectiveGold(base) {
-  const bonusPct = getTotalGoldBonusPercent();
-  return Math.max(0, Math.floor(base * (1 + bonusPct / 100)));
-}
-
-// ==================== SAVE / LOAD ====================
-
-function sanitizeLoadedState(obj) {
-  // En azından kırılmadan ayağa kalksın diye defensif temizlik
-  if (!obj || typeof obj !== 'object') return null;
-
-  const safe = structuredClone(G);
-
-  // primitive’ler
-  safe.gold = Number(obj.gold ?? safe.gold) || 0;
-  safe.xp = Number(obj.xp ?? safe.xp) || 0;
-  safe.level = clamp(Number(obj.level ?? safe.level) || 1, 1, 50);
-
-  safe.maxHp = clamp(Number(obj.maxHp ?? safe.maxHp) || 100, 1, 9999);
-  safe.hp = clamp(Number(obj.hp ?? safe.hp) || safe.maxHp, 0, safe.maxHp);
-
-  safe.gameTimeSeconds = Math.max(0, Number(obj.gameTimeSeconds ?? 0) || 0);
-  safe.timerRunning = !!obj.timerRunning;
-  safe.timerLastTick = Number(obj.timerLastTick ?? 0) || 0;
-
-  // quests
-  safe.quests = Array.isArray(obj.quests) ? obj.quests : [];
-
-  // inventory
-  if (Array.isArray(obj.inventory)) {
-    safe.inventory = obj.inventory.slice(0, 24);
-    while (safe.inventory.length < 24) safe.inventory.push(null);
-  }
-
-  // equipment
-  if (obj.equipment && typeof obj.equipment === 'object') {
-    safe.equipment = { ...safe.equipment, ...obj.equipment };
-  }
-
-  // stats
-  if (obj.stats && typeof obj.stats === 'object') {
-    safe.stats = { ...safe.stats, ...obj.stats };
-  }
-
-  // milestones / achievements
-  safe.milestones = (obj.milestones && typeof obj.milestones === 'object') ? obj.milestones : {};
-  safe.achievementUnlocked = (obj.achievementUnlocked && typeof obj.achievementUnlocked === 'object') ? obj.achievementUnlocked : {};
-
-  // settings
-  if (obj.settings && typeof obj.settings === 'object') {
-    safe.settings = { ...safe.settings, ...obj.settings };
-  }
-
-  // ui
-  if (obj.ui && typeof obj.ui === 'object') {
-    safe.ui = { ...safe.ui, ...obj.ui };
-  }
-
-  // sound sync
-  safe.settings.soundEnabled = !!safe.settings.soundEnabled;
-  try {
-    if (typeof soundEnabled !== 'undefined') soundEnabled = safe.settings.soundEnabled;
-  } catch (_) {}
-
-  return safe;
-}
-
-function saveGame() {
-  try {
-    const payload = JSON.stringify(G);
-    localStorage.setItem(STORAGE_KEY, payload);
-  } catch (e) {
-    console.warn('Save failed:', e);
-  }
-}
-
-function loadGame() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-
-    const parsed = JSON.parse(raw);
-    const sanitized = sanitizeLoadedState(parsed);
-    if (sanitized) G = sanitized;
-
-    // audio toggle UI senkronu (settings tabında var)
-    const st = document.getElementById('soundToggle');
-    if (st) {
-      st.textContent = G.settings.soundEnabled ? 'AÇIK' : 'KAPALI';
-      st.style.color = G.settings.soundEnabled ? 'var(--success)' : 'var(--danger)';
-    }
-  } catch (e) {
-    console.warn('Load failed:', e);
-  }
-}
-
-// ==================== DOM SAFE GETTERS ====================
-
-function $(id) { return document.getElementById(id); }
-
-function setText(id, v) {
-  const el = $(id);
-  if (el) el.textContent = String(v);
-}
-
-function setHTML(id, v) {
-  const el = $(id);
-  if (el) el.innerHTML = v;
-}
-
-// ==================== BOOTSTRAP (PART 2'de render bağlanacak) ====================
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Önce yükle
-  loadGame();
-
-  // soundEnabled sync (audio fonksiyonların bunu kullanıyor)
-  try {
-    if (typeof soundEnabled !== 'undefined') soundEnabled = !!G.settings.soundEnabled;
-  } catch (_) {}
-
-  // Günün ipucu (basit)
-  const tipEl = $('dailyTip');
-  if (tipEl) tipEl.textContent = pick(TIPS);
-
-  // PART 2’de bunlar: nav tab switch, render, quest init, inventory init, battle init, timer loop...
-  // Şimdilik en azından üst bar sayıları boş kalmasın diye hızlı set:
-  setText('goldDisplay', G.gold);
-  setText('invGold', G.gold);
-  setText('levelDisplay', `Sv.${G.level}`);
-  setText('hpDisplay', `${G.hp}/${G.maxHp}`);
-  setText('charHpText', `${G.hp}/${G.maxHp}`);
-  const hpBar = $('charHpBar');
-  if (hpBar) hpBar.style.width = `${(G.hp / Math.max(1, G.maxHp)) * 100}%`;
-
-  setText('charLevelName', getLevelName(G.level));
-  setText('battleLevel', G.stats.battleLevel ?? 1);
-  setText('battleWins', G.stats.battlesWon ?? 0);
-  setText('battleLosses', G.stats.battlesLost ?? 0);
-
-  // XP metni (render PART 2’de detaylanacak)
-  const need = getLevelXpNeed(G.level);
-  setText('charXpText', `${G.xp} / ${need} XP`);
-  const xpBar = $('charXpBar');
-  if (xpBar) xpBar.style.width = `${clamp((G.xp / Math.max(1, need)) * 100, 0, 100)}%`;
-
-  // bonuslar
-  const gb = getTotalGoldBonusPercent();
-  const db = getTotalDropBonusPercent();
-  setText('statGoldBonus', `+${gb}%`);
-  setText('statDropBonus', `+${db}%`);
-
-  // timer text (ring)
-  setText('timerRingText', fmtTime(G.gameTimeSeconds));
-  setText('timerBigDisplay', fmtTime(G.gameTimeSeconds));
-  setText('timerTotalMin', Math.floor(G.gameTimeSeconds / 60));
-});
-
-// ==================== PART 1 END ====================
-</script>
